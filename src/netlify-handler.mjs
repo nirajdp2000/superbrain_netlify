@@ -98,6 +98,10 @@ export async function handleNetlifyRequest(request) {
 
   const url = new URL(request.url);
   const { pathname, searchParams } = url;
+  const connectPageOptions = {
+    deploymentMode: "netlify",
+    siteOrigin: url.origin,
+  };
 
   try {
     if (request.method === "GET" && pathname === "/api/health") {
@@ -437,14 +441,14 @@ export async function handleNetlifyRequest(request) {
         } catch {
           userInfo = null;
         }
-        return withCors(request, htmlResponse(renderConnectedPage(userInfo)));
+        return withCors(request, htmlResponse(renderConnectedPage(userInfo, connectPageOptions)));
       }
 
       if (!isUpstoxConfigured()) {
-        return withCors(request, htmlResponse(renderConfigMissingPage()));
+        return withCors(request, htmlResponse(renderConfigMissingPage(connectPageOptions)));
       }
 
-      return withCors(request, htmlResponse(renderConnectPage(buildAuthorizationUrl())));
+      return withCors(request, htmlResponse(renderConnectPage(buildAuthorizationUrl(), connectPageOptions)));
     }
 
     if (request.method === "POST" && pathname === "/api/upstox/token") {
@@ -483,7 +487,7 @@ export async function handleNetlifyRequest(request) {
         } catch {
           userInfo = null;
         }
-        return withCors(request, htmlResponse(renderCallbackSuccess(userInfo)));
+        return withCors(request, htmlResponse(renderCallbackSuccess(userInfo, connectPageOptions)));
       } catch (error) {
         return withCors(request, htmlResponse(renderCallbackError(error.message), 500));
       }

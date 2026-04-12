@@ -48,22 +48,86 @@ h1{font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px}
 .user-email{font-size:12px;color:#71717a}
 </style>`;
 
-export function renderConnectedPage(userInfo) {
+const HTML_ESCAPE = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (match) => HTML_ESCAPE[match]);
+}
+
+function getConnectPageContext(options = {}) {
+  const deploymentMode = options.deploymentMode === "netlify" ? "netlify" : "local";
+  const fallbackOrigin = deploymentMode === "netlify"
+    ? "https://your-site.netlify.app"
+    : "http://localhost:3210";
+  const siteOrigin = String(options.siteOrigin || fallbackOrigin).replace(/\/+$/, "");
+  const callbackUrl = escapeHtml(options.callbackUrl || `${siteOrigin}/api/upstox/callback`);
+  const safeOrigin = escapeHtml(siteOrigin);
+
+  if (deploymentMode === "netlify") {
+    return {
+      callbackUrl,
+      dashboardUrl: options.dashboardUrl || "/",
+      storageLabel: "Runtime cache",
+      connectedSubtitle: "Your account is active. Live market data is flowing through this Netlify deployment.",
+      connectedNote: "Tokens are cached inside the active Netlify runtime. After a redeploy or cold start, reconnect may be required unless a persistent token is supplied through environment variables.",
+      connectStepText: "Redirected back automatically and token cached inside the active Netlify runtime",
+      connectNote: `OAuth 2.0 secured. The Upstox redirect URI must exactly match ${callbackUrl}.`,
+      callbackStorageText: "Token cached in the active Netlify runtime",
+      configSubtitle: `Upstox API credentials are not configured in this Netlify site's environment variables.`,
+      configSectionLabel: "Add in Netlify environment variables",
+      configLines: [
+        "UPSTOX_CLIENT_ID=your_client_id",
+        "UPSTOX_CLIENT_SECRET=your_client_secret",
+        `UPSTOX_REDIRECT_URI=${callbackUrl}`,
+        `SUPERBRAIN_ALLOWED_ORIGINS=${safeOrigin}`,
+      ],
+      configNote: `In the Upstox developer app, set the redirect URI to ${callbackUrl}. Then add the same values in Netlify Site configuration > Environment variables and trigger a fresh deploy.`,
+    };
+  }
+
+  return {
+    callbackUrl,
+    dashboardUrl: options.dashboardUrl || "/",
+    storageLabel: "JSON File",
+    connectedSubtitle: "Your account is active. Live market data is flowing.",
+    connectedNote: "Token auto-refreshes daily at 8:30 AM IST. No manual re-login required.",
+    connectStepText: "Redirected back automatically and token saved securely",
+    connectNote: "OAuth 2.0 secured. Token stored locally. Never shared.",
+    callbackStorageText: "Token stored securely on disk",
+    configSubtitle: `Upstox API credentials are not configured in your <code style="color:#93c5fd">.env</code> file.`,
+    configSectionLabel: "Add to your .env file",
+    configLines: [
+      "UPSTOX_CLIENT_ID=your_client_id",
+      "UPSTOX_CLIENT_SECRET=your_client_secret",
+      `UPSTOX_REDIRECT_URI=${callbackUrl}`,
+    ],
+    configNote: `After updating <code style="color:#93c5fd">.env</code>, restart <code style="color:#93c5fd">node src/server.mjs</code>.`,
+  };
+}
+
+export function renderConnectedPage(userInfo, options = {}) {
   const name = userInfo?.userName || userInfo?.userId || "Authenticated";
   const email = userInfo?.email || "";
+  const context = getConnectPageContext(options);
 
   return `<!DOCTYPE html><html><head><title>Upstox Connected - Superbrain</title>${STYLES}</head><body>
 <div class="card">
   <div class="logo"><div class="logo-icon">SB</div><div><div class="logo-text">Superbrain</div><div class="logo-sub">India Intelligence</div></div></div>
   <div class="badge badge-green"><div class="dot dot-green"></div>Live Connected</div>
   <h1>Upstox Connected</h1>
-  <p class="subtitle">Your account is active. Live market data is flowing.</p>
+  <p class="subtitle">${context.connectedSubtitle}</p>
   ${userInfo ? `<div class="user-info"><div class="user-name">${name}</div>${email ? `<div class="user-email">${email}</div>` : ""}</div>` : ""}
   <div class="grid2">
     <div class="info-card"><div class="info-label">Status</div><div class="info-value green">Active</div></div>
     <div class="info-card"><div class="info-label">Data Source</div><div class="info-value green">Upstox Live</div></div>
     <div class="info-card"><div class="info-label">Auto-Refresh</div><div class="info-value amber">8:30 AM IST</div></div>
-    <div class="info-card"><div class="info-label">Token Storage</div><div class="info-value">JSON File</div></div>
+    <div class="info-card"><div class="info-label">Token Storage</div><div class="info-value">${context.storageLabel}</div></div>
   </div>
   <div class="benefits">
     <div class="benefit"><div class="bdot"></div>Real-time quotes</div>
@@ -75,11 +139,13 @@ export function renderConnectedPage(userInfo) {
   </div>
   <a href="/" class="btn btn-primary">Back to Dashboard</a>
   <a href="/api/upstox/status" class="btn btn-secondary">View API Status</a>
-  <p class="note">Token auto-refreshes daily at 8:30 AM IST. No manual re-login required.</p>
+  <p class="note">${context.connectedNote}</p>
 </div></body></html>`;
 }
 
-export function renderConnectPage(authUrl) {
+export function renderConnectPage(authUrl, options = {}) {
+  const context = getConnectPageContext(options);
+
   return `<!DOCTYPE html><html><head><title>Connect Upstox - Superbrain</title>${STYLES}</head><body>
 <div class="card">
   <div class="logo"><div class="logo-icon">SB</div><div><div class="logo-text">Superbrain</div><div class="logo-sub">India Intelligence</div></div></div>
@@ -95,7 +161,7 @@ export function renderConnectPage(authUrl) {
     <div class="step"><div class="step-num">1</div><div class="step-text">Redirected to the Upstox login page</div></div>
     <div class="step"><div class="step-num">2</div><div class="step-text">Login with your Upstox credentials</div></div>
     <div class="step"><div class="step-num">3</div><div class="step-text">Authorize Superbrain to access market data</div></div>
-    <div class="step"><div class="step-num">4</div><div class="step-text">Redirected back automatically and token saved securely</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-text">${context.connectStepText}</div></div>
     <div class="step"><div class="step-num">5</div><div class="step-text">Live data activates instantly</div></div>
   </div>
   <div class="benefits">
@@ -108,7 +174,7 @@ export function renderConnectPage(authUrl) {
   </div>
   <a href="${authUrl}" class="btn btn-primary">Authorize Upstox Account</a>
   <a href="/" class="btn btn-secondary">Back to Dashboard</a>
-  <p class="note">OAuth 2.0 secured. Token stored locally. Never shared.</p>
+  <p class="note">${context.connectNote}</p>
 </div></body></html>`;
 }
 
@@ -116,6 +182,7 @@ export function renderCallbackSuccess(userInfo, options = {}) {
   const name = userInfo?.userName || userInfo?.userId || "your account";
   const dashboardUrl = options.dashboardUrl || options.redirectUrl || "/";
   const redirectUrl = options.redirectUrl || dashboardUrl;
+  const context = getConnectPageContext({ ...options, dashboardUrl });
 
   return `<!DOCTYPE html><html><head><title>Connected - Superbrain</title>${STYLES}
 <script>setTimeout(() => location.replace(${JSON.stringify(redirectUrl)}), 2500)</script>
@@ -127,7 +194,7 @@ export function renderCallbackSuccess(userInfo, options = {}) {
   <p class="subtitle">Welcome, ${name}. Live market data is now active.</p>
   <div class="steps-box">
     <div class="section-label">What's active now</div>
-    <div class="step"><div class="step-num">OK</div><div class="step-text">Token stored securely on disk</div></div>
+    <div class="step"><div class="step-num">OK</div><div class="step-text">${context.callbackStorageText}</div></div>
     <div class="step"><div class="step-num">OK</div><div class="step-text">Auto-refresh scheduled for 8:30 AM IST daily</div></div>
     <div class="step"><div class="step-num">OK</div><div class="step-text">Live quotes now flowing from Upstox</div></div>
   </div>
@@ -153,25 +220,21 @@ export function renderCallbackError(message, options = {}) {
 </div></body></html>`;
 }
 
-export function renderConfigMissingPage() {
+export function renderConfigMissingPage(options = {}) {
+  const context = getConnectPageContext(options);
+
   return `<!DOCTYPE html><html><head><title>Setup Required - Superbrain</title>${STYLES}</head><body>
 <div class="card">
   <div class="logo"><div class="logo-icon">CFG</div><div><div class="logo-text">Superbrain</div><div class="logo-sub">Configuration</div></div></div>
   <div class="badge badge-red"><div class="dot dot-red"></div>Config Missing</div>
   <h1>Setup Required</h1>
-  <p class="subtitle">Upstox API credentials are not configured in your <code style="color:#93c5fd">.env</code> file.</p>
+  <p class="subtitle">${context.configSubtitle}</p>
   <div class="steps-box" style="margin-top:20px">
-    <div class="section-label">Add to your .env file</div>
-    <div style="font-family:monospace;font-size:11px;color:#93c5fd;line-height:2">
-      UPSTOX_CLIENT_ID=your_client_id<br>
-      UPSTOX_CLIENT_SECRET=your_client_secret<br>
-      UPSTOX_REDIRECT_URI=http://localhost:3210/api/upstox/callback<br>
-      # Netlify production example:<br>
-      # UPSTOX_REDIRECT_URI=https://your-site.netlify.app/api/upstox/callback
-    </div>
+    <div class="section-label">${context.configSectionLabel}</div>
+    <div style="font-family:monospace;font-size:11px;color:#93c5fd;line-height:2">${context.configLines.join("<br>")}</div>
   </div>
   <a href="https://account.upstox.com/developer/apps" target="_blank" class="btn btn-primary">Get Credentials from Upstox</a>
   <a href="/" class="btn btn-secondary">Back to Dashboard</a>
-  <p class="note">For local mode restart <code style="color:#93c5fd">node src/server.mjs</code>. For Netlify, add the same variables in site environment settings.</p>
+  <p class="note">${context.configNote}</p>
 </div></body></html>`;
 }

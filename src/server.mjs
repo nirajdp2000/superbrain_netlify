@@ -168,6 +168,10 @@ function requestHandler() {
 
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     const { pathname, searchParams } = url;
+    const connectPageOptions = {
+      deploymentMode: "local",
+      siteOrigin: `${getRequestProtocol(request)}://${getRequestHost(request)}`,
+    };
 
     try {
       if (request.method === "GET" && serveStatic(response, pathname)) {
@@ -564,15 +568,15 @@ function requestHandler() {
         if (status.connected) {
           let userInfo = null;
           try { userInfo = await fetchUpstoxProfile(); } catch { /* ignore */ }
-          html(response, 200, renderConnectedPage(userInfo));
+          html(response, 200, renderConnectedPage(userInfo, connectPageOptions));
           return;
         }
         if (!isUpstoxConfigured()) {
-          html(response, 200, renderConfigMissingPage());
+          html(response, 200, renderConfigMissingPage(connectPageOptions));
           return;
         }
         const authUrl = buildAuthorizationUrl();
-        html(response, 200, renderConnectPage(authUrl));
+        html(response, 200, renderConnectPage(authUrl, connectPageOptions));
         return;
       }
 
@@ -614,7 +618,7 @@ function requestHandler() {
           await exchangeAuthorizationCode(code);
           let userInfo = null;
           try { userInfo = await fetchUpstoxProfile(); } catch { /* ignore */ }
-          html(response, 200, renderCallbackSuccess(userInfo));
+          html(response, 200, renderCallbackSuccess(userInfo, connectPageOptions));
         } catch (err) {
           html(response, 500, renderCallbackError(err.message));
         }
