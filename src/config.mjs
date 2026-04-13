@@ -54,7 +54,12 @@ const isNetlifyRuntime = Boolean(
   || process.env.CONTEXT
   || process.env.SITE_NAME,
 );
-const publicSiteUrl = normalizeOrigin(process.env.SUPERBRAIN_PUBLIC_SITE_URL || process.env.URL || "")
+const netlifyDeployUrl = normalizeOrigin(process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL || "");
+const configuredPublicSiteUrl = normalizeOrigin(process.env.SUPERBRAIN_PUBLIC_SITE_URL || "");
+const netlifyProductionUrl = normalizeOrigin(process.env.URL || "");
+const publicSiteUrl = netlifyDeployUrl
+  || configuredPublicSiteUrl
+  || netlifyProductionUrl
   || (isNetlifyRuntime ? "https://superbrainai.netlify.app" : "");
 const netlifyUpstoxDefaults = isNetlifyRuntime
   ? {
