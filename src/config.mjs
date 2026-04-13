@@ -46,8 +46,25 @@ function normalizeOrigin(value) {
 }
 
 const defaultPort = Number(process.env.PORT || 3210);
-const isNetlifyRuntime = Boolean(process.env.NETLIFY || process.env.NETLIFY_DEV);
-const publicSiteUrl = normalizeOrigin(process.env.SUPERBRAIN_PUBLIC_SITE_URL || process.env.URL || "");
+const isNetlifyRuntime = Boolean(
+  process.env.NETLIFY
+  || process.env.NETLIFY_DEV
+  || process.env.URL
+  || process.env.DEPLOY_PRIME_URL
+  || process.env.CONTEXT
+  || process.env.SITE_NAME,
+);
+const publicSiteUrl = normalizeOrigin(process.env.SUPERBRAIN_PUBLIC_SITE_URL || process.env.URL || "")
+  || (isNetlifyRuntime ? "https://superbrainai.netlify.app" : "");
+const netlifyUpstoxDefaults = isNetlifyRuntime
+  ? {
+      clientId: "4ec51c87-a099-4ade-b727-960817b31c94",
+      clientSecret: "n7qldsrvus",
+    }
+  : {
+      clientId: "",
+      clientSecret: "",
+    };
 const defaultTokenDbPath = process.env.SUPERBRAIN_TOKEN_DB_PATH
   || (isNetlifyRuntime
     ? path.join(os.tmpdir(), "superbrain", "upstox-token-store.json")
@@ -66,8 +83,8 @@ export const config = {
   httpTimeoutMs: Math.max(1500, Number(process.env.SUPERBRAIN_HTTP_TIMEOUT_MS || 9000)),
   upstoxProxyUrl: (process.env.SUPERBRAIN_UPSTOX_PROXY_URL ?? "").replace(/\/+$/, ""),
   upstox: {
-    clientId: process.env.UPSTOX_CLIENT_ID || "",
-    clientSecret: process.env.UPSTOX_CLIENT_SECRET || "",
+    clientId: process.env.UPSTOX_CLIENT_ID || netlifyUpstoxDefaults.clientId,
+    clientSecret: process.env.UPSTOX_CLIENT_SECRET || netlifyUpstoxDefaults.clientSecret,
     redirectUri: process.env.UPSTOX_REDIRECT_URI || defaultRedirectUri,
     accessToken: process.env.UPSTOX_ACCESS_TOKEN || "",
     refreshToken: process.env.UPSTOX_REFRESH_TOKEN || "",
