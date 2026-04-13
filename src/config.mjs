@@ -34,15 +34,29 @@ function loadEnvFile() {
 
 loadEnvFile();
 
+function normalizeOrigin(value) {
+  if (!value) {
+    return "";
+  }
+  try {
+    return new URL(value).origin.replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+}
+
 const defaultPort = Number(process.env.PORT || 3210);
 const isNetlifyRuntime = Boolean(process.env.NETLIFY || process.env.NETLIFY_DEV);
+const publicSiteUrl = normalizeOrigin(process.env.SUPERBRAIN_PUBLIC_SITE_URL || process.env.URL || "");
 const defaultTokenDbPath = process.env.SUPERBRAIN_TOKEN_DB_PATH
   || (isNetlifyRuntime
     ? path.join(os.tmpdir(), "superbrain", "upstox-token-store.json")
     : "./data/upstox-token-store.json");
+const defaultRedirectUri = publicSiteUrl ? `${publicSiteUrl}/api/upstox/callback` : "";
 
 export const config = {
   port: Number.isFinite(defaultPort) ? defaultPort : 3210,
+  publicSiteUrl,
   allowedOrigins: (process.env.SUPERBRAIN_ALLOWED_ORIGINS || "")
     .split(",")
     .map((value) => value.trim())
@@ -54,7 +68,7 @@ export const config = {
   upstox: {
     clientId: process.env.UPSTOX_CLIENT_ID || "",
     clientSecret: process.env.UPSTOX_CLIENT_SECRET || "",
-    redirectUri: process.env.UPSTOX_REDIRECT_URI || "",
+    redirectUri: process.env.UPSTOX_REDIRECT_URI || defaultRedirectUri,
     accessToken: process.env.UPSTOX_ACCESS_TOKEN || "",
     refreshToken: process.env.UPSTOX_REFRESH_TOKEN || "",
   },

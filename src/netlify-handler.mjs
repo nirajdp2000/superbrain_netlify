@@ -98,9 +98,11 @@ export async function handleNetlifyRequest(request) {
 
   const url = new URL(request.url);
   const { pathname, searchParams } = url;
+  const siteOrigin = config.publicSiteUrl || url.origin;
   const connectPageOptions = {
     deploymentMode: "netlify",
-    siteOrigin: url.origin,
+    siteOrigin,
+    callbackUrl: config.upstox.redirectUri || `${siteOrigin}/api/upstox/callback`,
   };
 
   try {

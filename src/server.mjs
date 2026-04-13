@@ -168,9 +168,11 @@ function requestHandler() {
 
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     const { pathname, searchParams } = url;
+    const siteOrigin = `${getRequestProtocol(request)}://${getRequestHost(request)}`;
     const connectPageOptions = {
       deploymentMode: "local",
-      siteOrigin: `${getRequestProtocol(request)}://${getRequestHost(request)}`,
+      siteOrigin,
+      callbackUrl: config.upstox.redirectUri || `${siteOrigin}/api/upstox/callback`,
     };
 
     try {
