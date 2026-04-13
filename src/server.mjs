@@ -169,10 +169,11 @@ function requestHandler() {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     const { pathname, searchParams } = url;
     const siteOrigin = `${getRequestProtocol(request)}://${getRequestHost(request)}`;
+    const callbackUrl = config.upstox.redirectUri || `${siteOrigin}/api/upstox/callback`;
     const connectPageOptions = {
       deploymentMode: "local",
       siteOrigin,
-      callbackUrl: config.upstox.redirectUri || `${siteOrigin}/api/upstox/callback`,
+      callbackUrl,
     };
 
     try {
@@ -573,11 +574,11 @@ function requestHandler() {
           html(response, 200, renderConnectedPage(userInfo, connectPageOptions));
           return;
         }
-        if (!isUpstoxConfigured()) {
+        if (!isUpstoxConfigured(callbackUrl)) {
           html(response, 200, renderConfigMissingPage(connectPageOptions));
           return;
         }
-        const authUrl = buildAuthorizationUrl();
+        const authUrl = buildAuthorizationUrl("superbrain-india", callbackUrl);
         html(response, 200, renderConnectPage(authUrl, connectPageOptions));
         return;
       }
@@ -604,7 +605,7 @@ function requestHandler() {
       }
 
       if (request.method === "GET" && pathname === "/api/upstox/connect") {
-        const target = buildAuthorizationUrl();
+        const target = buildAuthorizationUrl("superbrain-india", callbackUrl);
         response.writeHead(302, { location: target });
         response.end();
         return;
@@ -617,7 +618,7 @@ function requestHandler() {
           return;
         }
         try {
-          await exchangeAuthorizationCode(code);
+          await exchangeAuthorizationCode(code, callbackUrl);
           let userInfo = null;
           try { userInfo = await fetchUpstoxProfile(); } catch { /* ignore */ }
           html(response, 200, renderCallbackSuccess(userInfo, connectPageOptions));

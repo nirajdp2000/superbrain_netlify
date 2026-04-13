@@ -91,6 +91,23 @@ function notFoundResponse() {
   return jsonResponse({ error: "Not found" }, 404);
 }
 
+function resolveCallbackUrl(url) {
+  const requestCallbackUrl = `${url.origin}/api/upstox/callback`;
+  const isNetlifyPreview = url.hostname.endsWith(".netlify.app") && url.hostname.includes("--");
+  if (isNetlifyPreview) {
+    return requestCallbackUrl;
+  }
+  return config.upstox.redirectUri || requestCallbackUrl;
+}
+
+function getOriginFromUrl(value, fallback) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function handleNetlifyRequest(request) {
   if (request.method === "OPTIONS") {
     return withCors(request, new Response(null, { status: 204 }));
@@ -98,11 +115,12 @@ export async function handleNetlifyRequest(request) {
 
   const url = new URL(request.url);
   const { pathname, searchParams } = url;
-  const siteOrigin = config.publicSiteUrl || url.origin;
+  const callbackUrl = resolveCallbackUrl(url);
+  const siteOrigin = getOriginFromUrl(callbackUrl, config.publicSiteUrl || url.origin);
   const connectPageOptions = {
     deploymentMode: "netlify",
     siteOrigin,
-    callbackUrl: config.upstox.redirectUri || `${siteOrigin}/api/upstox/callback`,
+    callbackUrl,
   };
 
   try {
@@ -446,11 +464,11 @@ export async function handleNetlifyRequest(request) {
         return withCors(request, htmlResponse(renderConnectedPage(userInfo, connectPageOptions)));
       }
 
-      if (!isUpstoxConfigured()) {
+      if (!isUpstoxConfigured(callbackUrl)) {
         return withCors(request, htmlResponse(renderConfigMissingPage(connectPageOptions)));
       }
 
-      return withCors(request, htmlResponse(renderConnectPage(buildAuthorizationUrl(), connectPageOptions)));
+      return withCors(request, htmlResponse(renderConnectPage(buildAuthorizationUrl("superbrain-india", callbackUrl), connectPageOptions)));
     }
 
     if (request.method === "POST" && pathname === "/api/upstox/token") {
@@ -472,7 +490,7 @@ export async function handleNetlifyRequest(request) {
     }
 
     if (request.method === "GET" && pathname === "/api/upstox/connect") {
-      return withCors(request, redirectResponse(buildAuthorizationUrl()));
+      return withCors(request, redirectResponse(buildAuthorizationUrl("superbrain-india", callbackUrl)));
     }
 
     if (request.method === "GET" && pathname === "/api/upstox/callback") {
@@ -482,7 +500,7 @@ export async function handleNetlifyRequest(request) {
       }
 
       try {
-        await exchangeAuthorizationCode(code);
+        await exchangeAuthorizationCode(code, callbackUrl);
         let userInfo = null;
         try {
           userInfo = await fetchUpstoxProfile();

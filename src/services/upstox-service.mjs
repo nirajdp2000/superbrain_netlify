@@ -139,8 +139,9 @@ async function probeAccessToken(token) {
   }
 }
 
-export function isUpstoxConfigured() {
-  return Boolean(config.upstox.clientId && config.upstox.clientSecret && config.upstox.redirectUri);
+export function isUpstoxConfigured(redirectUriOverride = "") {
+  const redirectUri = redirectUriOverride || config.upstox.redirectUri;
+  return Boolean(config.upstox.clientId && config.upstox.clientSecret && redirectUri);
 }
 
 export async function getValidAccessToken() {
@@ -160,21 +161,23 @@ export async function getValidAccessToken() {
   return record?.accessToken || null;
 }
 
-export function buildAuthorizationUrl(state = "superbrain-india") {
-  if (!isUpstoxConfigured()) {
+export function buildAuthorizationUrl(state = "superbrain-india", redirectUriOverride = "") {
+  const redirectUri = redirectUriOverride || config.upstox.redirectUri;
+  if (!isUpstoxConfigured(redirectUri)) {
     throw new Error("Upstox credentials are not configured.");
   }
 
   const url = new URL(`${UPSTOX_API}/v2/login/authorization/dialog`);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", config.upstox.clientId);
-  url.searchParams.set("redirect_uri", config.upstox.redirectUri);
+  url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
   return url.toString();
 }
 
-export async function exchangeAuthorizationCode(code) {
-  if (!isUpstoxConfigured()) {
+export async function exchangeAuthorizationCode(code, redirectUriOverride = "") {
+  const redirectUri = redirectUriOverride || config.upstox.redirectUri;
+  if (!isUpstoxConfigured(redirectUri)) {
     throw new Error("Upstox credentials are not configured.");
   }
 
@@ -183,7 +186,7 @@ export async function exchangeAuthorizationCode(code) {
     code,
     client_id: config.upstox.clientId,
     client_secret: config.upstox.clientSecret,
-    redirect_uri: config.upstox.redirectUri,
+    redirect_uri: redirectUri,
   });
 
   const response = await fetchJson(`${UPSTOX_API}/v2/login/authorization/token`, {
